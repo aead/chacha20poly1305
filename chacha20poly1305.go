@@ -69,7 +69,7 @@ func (c *c20p1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	}
 
 	var polyKey [32]byte
-	cipher, _ := chacha.NewCipher(nonce, &c.key, 20)
+	cipher, _ := chacha.NewCipher(nonce, c.key[:], 20)
 	cipher.XORKeyStream(polyKey[:], polyKey[:])
 	cipher.SetCounter(1)
 
@@ -111,7 +111,7 @@ func (c *c20p1305) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 	}
 
 	var polyKey [32]byte
-	cipher, _ := chacha.NewCipher(nonce, &c.key, 20)
+	cipher, _ := chacha.NewCipher(nonce, c.key[:], 20)
 	cipher.XORKeyStream(polyKey[:], polyKey[:])
 	cipher.SetCounter(1)
 
