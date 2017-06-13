@@ -51,7 +51,9 @@ func TestEncryptedWriter(t *testing.T) {
 			t.Errorf("Failed to create encrypted writer: %v", err)
 		}
 		encWriter.Write(plaintext)
-		encWriter.Close()
+		if err := encWriter.Close(); err != nil {
+			t.Errorf("Failed to finish encryption: %v", err)
+		}
 
 		if encrypted := mem.Bytes(); !bytes.Equal(ciphertext, encrypted) {
 			t.Errorf("EncryptedWriter differs from Seal:\ngot : %v\nwant: %v\n", encrypted, ciphertext)
@@ -69,8 +71,10 @@ func TestEncryptedWriter(t *testing.T) {
 			encWriter.Write(plaintext[5:17])
 			encWriter.Write(plaintext[17:40])
 			encWriter.Write(plaintext[40:])
-			encWriter.Close()
 
+			if err := encWriter.Close(); err != nil {
+				t.Errorf("Failed to finish encryption: %v", err)
+			}
 			if encrypted := mem.Bytes(); !bytes.Equal(ciphertext, encrypted) {
 				t.Errorf("EncryptedWriter differs from Seal:\ngot : %v\nwant: %v\n", encrypted, ciphertext)
 			}
@@ -91,7 +95,9 @@ func TestDecryptedWriter(t *testing.T) {
 			t.Errorf("Failed to create decrypted writer: %v", err)
 		}
 		decWriter.Write(ciphertext)
-		decWriter.Close()
+		if err := decWriter.Close(); err != nil {
+			t.Errorf("Failed to decrypt ciphertext: %v", err)
+		}
 
 		if decrypted := mem.Bytes(); !bytes.Equal(plaintext, decrypted) {
 			t.Errorf("DecryptedWriter differs from Seal:\ngot : %v\nwant: %v\n", decrypted, plaintext)
@@ -109,8 +115,10 @@ func TestDecryptedWriter(t *testing.T) {
 			decWriter.Write(ciphertext[5:17])
 			decWriter.Write(ciphertext[17:40])
 			decWriter.Write(ciphertext[40:])
-			decWriter.Close()
 
+			if err := decWriter.Close(); err != nil {
+				t.Errorf("Failed to decrypt ciphertext: %v", err)
+			}
 			if decrypted := mem.Bytes(); !bytes.Equal(plaintext, decrypted) {
 				t.Errorf("DecryptedWriter differs from Seal:\ngot : %v\nwant: %v\n", decrypted, plaintext)
 			}
@@ -166,31 +174,76 @@ func BenchmarkDecryptedWriter8K(b *testing.B) {
 }
 
 func ExampleEncryptWriter() {
-	// we write to memory, real code can also write to a file or network connection
+	// we write to memory, real code may write to a file, network connection or ...
 	mem := bytes.NewBuffer(nil)
 
+	// Create a secret key - can also be generated from a passwort or ...
 	key := make([]byte, 32)
-
-	// Create a key - can also be generated from a passwort or similar.
-	io.ReadFull(rand.Reader, key)
-
-	nonce := make([]byte, 8)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		panic(fmt.Sprintf("Failed to create random encryption key: %v", err))
+	}
 
 	// Set the nonce, in this case we encrypt the first message so we set it to 1.
+	// Be aware that the nonce must be unique for every message under the same key.
+	nonce := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonce, 1)
 
 	encryptedWriter, err := EncryptWriter(mem, key, nonce)
 	if err != nil {
 		panic(fmt.Sprintf("Cannot create encrypted writer: %v", err))
 	}
-	// Close finishes the encryption, so it MUST be called! We ensure this through defer
-	defer encryptedWriter.Close()
+	// Close finishes the encryption, so it MUST be called! We ensure this through defer.
+	defer func() {
+		if err := encryptedWriter.Close(); err != nil {
+			panic(fmt.Sprintf("Failed to finish encryption: %v", err))
+		}
+	}()
 
 	msg := []byte("Nobody should see this - ever!")
 	// encrypt the message
 	encryptedWriter.Write(msg)
+	//Output:
+}
 
-	// never forget to close the encryptedWriter or you will not be able to dercypt your msg again.
-	// Even worse you may give an attacker a opportunity to figure out the msg or apply other sophistic
-	// attacks. So CLOSE THE WRITER!
+func ExampleDecryptWriter() {
+	// Create a secret key - can also be generated from a passwort or ...
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		panic(fmt.Sprintf("Failed to create random encryption key: %v", err))
+	}
+	// Set the nonce, in this case we encrypt the first message so we set it to 1.
+	// Be aware that the nonce must be unique for every message under the same key.
+	nonce := make([]byte, 8)
+	binary.LittleEndian.PutUint64(nonce, 1)
+
+	// We first encrypt a stream.
+	mem := bytes.NewBuffer(nil)
+	encryptedWriter, err := EncryptWriter(mem, key, nonce)
+	if err != nil {
+		panic(fmt.Sprintf("Cannot create encrypted writer: %v", err))
+	}
+	msg := []byte("Nobody should see this - ever!")
+	encryptedWriter.Write(msg)
+	if err := encryptedWriter.Close(); err != nil {
+		panic(fmt.Sprintf("Failed to finish encryption: %v", err))
+	}
+	ciphertext := mem.Bytes()
+
+	mem = bytes.NewBuffer(nil)
+	// So now we want to decrypt the message
+	decryptedWriter, err := DecryptWriter(mem, key, nonce)
+	if err != nil {
+		panic(fmt.Sprintf("Cannot create decrypted writer: %v", err))
+	}
+	decryptedWriter.Write(ciphertext)
+
+	// Close finishes the decryption. Close MUST be called to successfully decrypt a
+	// ciphertext. Further Close returns a non-nil error if the decryption failed - e.g. if
+	// the authentication failed - so we MUST invoke Close and MUST check if the returned error
+	// is nil. Otherwise the decryption will fail / was not successfull.
+	if err := decryptedWriter.Close(); err != nil {
+		panic(fmt.Sprintf("Failed to finish decryption: %v", err))
+	}
+	fmt.Println(string(mem.Bytes()))
+	//Output: Nobody should see this - ever!
 }

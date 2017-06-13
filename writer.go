@@ -11,6 +11,17 @@ import (
 
 const tagsize = poly1305.TagSize
 
+// EncryptWriter wraps an io.Writer and returns an io.WriteCloser which
+// encrypts and authenticates all input passed into it with the given key and
+// nonce. The Close function of the returned io.WriteCloser must be called
+// to finish the encryption successfully.
+//
+// If the Write or Close function of the io.WriteCloser returns a non-nil error
+// the hole encryption process cannot succeed and must be restarted.
+// The length of the nonce determines which cipher is used:
+// - 8 byte: ChaCha20Poly1305 with 64 bit nonces
+// - 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
+// - 24 byte: XChaCha20Poly1305 with 192 bit nonces
 func EncryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 	enc, err := newAeadCipher(w, key, nonce)
 	if err != nil {
@@ -19,20 +30,25 @@ func EncryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 	return &encryptedWriter{aeadCipher: *enc}, nil
 }
 
+// DecryptWriter wraps an io.Writer and returns an io.WriteCloser which
+// decrypts and checks authenticity of all input passed into it with the given key
+// and nonce. The Close function of the returned io.WriteCloser must be called
+// to finish the decryption successfully. If the Close function returns a non-nil
+// error the decryption failed - for example because of an incorrect authentication tag.
+// So the returned error of Close MUST be checked!
+//
+// If the Write or Close function of the io.WriteCloser returns a non-nil error
+// the hole decryption process cannot succeed and must be restarted.
+// The length of the nonce determines which cipher is used:
+// - 8 byte: ChaCha20Poly1305 with 64 bit nonces
+// - 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
+// - 24 byte: XChaCha20Poly1305 with 192 bit nonces
 func DecryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 	dec, err := newAeadCipher(w, key, nonce)
 	if err != nil {
 		return nil, err
 	}
 	return &decryptedWriter{aeadCipher: *dec}, nil
-}
-
-func EncryptReader(r io.Reader, key, nonce []byte) (io.Reader, error) {
-	return nil, nil
-}
-
-func DecryptReader(r io.Reader, key, nonce []byte) (io.Reader, error) {
-	return nil, nil
 }
 
 type aeadCipher struct {
@@ -147,7 +163,7 @@ func (w *decryptedWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *decryptedWriter) Close() error {
-	w.byteCtr -= tagsize
+	w.byteCtr -= tagsize // we only count the ciphertext, not the tag
 
 	var tag [tagsize]byte
 	w.authenticate(&tag)
