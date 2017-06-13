@@ -41,7 +41,7 @@ func newSealMessage(msgLen int, key, nonce []byte) (plaintext, ciphertext []byte
 func TestEncryptedWriter(t *testing.T) {
 	key, nonce := make([]byte, 32), make([]byte, 8)
 
-	for m := 0; m <= 41; m++ {
+	for m := 0; m <= 256; m++ {
 		nonce[0] = byte(m)
 		plaintext, ciphertext := newSealMessage(m, key, nonce)
 
@@ -85,7 +85,7 @@ func TestEncryptedWriter(t *testing.T) {
 func TestDecryptedWriter(t *testing.T) {
 	key, nonce := make([]byte, 32), make([]byte, 8)
 
-	for m := 0; m <= 41; m++ {
+	for m := 0; m <= 256; m++ {
 		nonce[0] = byte(m)
 		plaintext, ciphertext := newSealMessage(m, key, nonce)
 
