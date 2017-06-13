@@ -19,9 +19,9 @@ const tagsize = poly1305.TagSize
 // If the Write or Close function of the io.WriteCloser returns a non-nil error
 // the hole encryption process cannot succeed and must be restarted.
 // The length of the nonce determines which cipher is used:
-// - 8 byte: ChaCha20Poly1305 with 64 bit nonces
-// - 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
-// - 24 byte: XChaCha20Poly1305 with 192 bit nonces
+// 	- 8 byte: ChaCha20Poly1305 with 64 bit nonces
+// 	- 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
+// 	- 24 byte: XChaCha20Poly1305 with 192 bit nonces
 func EncryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 	enc, err := newAeadCipher(w, key, nonce)
 	if err != nil {
@@ -40,9 +40,9 @@ func EncryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 // If the Write or Close function of the io.WriteCloser returns a non-nil error
 // the hole decryption process cannot succeed and must be restarted.
 // The length of the nonce determines which cipher is used:
-// - 8 byte: ChaCha20Poly1305 with 64 bit nonces
-// - 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
-// - 24 byte: XChaCha20Poly1305 with 192 bit nonces
+// 	- 8 byte: ChaCha20Poly1305 with 64 bit nonces
+// 	- 12 byte: ChaCha20Poly1305 with 96 bit nonces (used in TLS)
+// 	- 24 byte: XChaCha20Poly1305 with 192 bit nonces
 func DecryptWriter(w io.Writer, key, nonce []byte) (io.WriteCloser, error) {
 	dec, err := newAeadCipher(w, key, nonce)
 	if err != nil {
