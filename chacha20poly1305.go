@@ -82,7 +82,7 @@ func (c *c20p1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	cipher.XORKeyStream(out, plaintext)
 
 	var tag, pad [16]byte
-	hash := poly1305.New(&polyKey)
+	hash := poly1305.New(polyKey)
 
 	hash.Write(additionalData)
 	if padAdd := len(additionalData) % 16; padAdd > 0 {
@@ -98,7 +98,7 @@ func (c *c20p1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	binary.LittleEndian.PutUint64(pad[8:], uint64(n))
 	hash.Write(pad[:])
 
-	hash.Sum(&tag)
+	hash.Sum(tag[:0])
 	copy(out[n:], tag[:])
 	return ret
 }
@@ -122,7 +122,7 @@ func (c *c20p1305) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 	n := len(ciphertext) - c.Overhead()
 
 	var tag, pad [16]byte
-	hash := poly1305.New(&polyKey)
+	hash := poly1305.New(polyKey)
 
 	hash.Write(additionalData)
 	if padAdd := len(additionalData) % 16; padAdd > 0 {
@@ -137,7 +137,7 @@ func (c *c20p1305) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 	binary.LittleEndian.PutUint64(pad[:], uint64(len(additionalData)))
 	binary.LittleEndian.PutUint64(pad[8:], uint64(n))
 	hash.Write(pad[:])
-	hash.Sum(&tag)
+	hash.Sum(tag[:0])
 
 	if subtle.ConstantTimeCompare(tag[:], ciphertext[n:]) != 1 {
 		return nil, errAuthFailed

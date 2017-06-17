@@ -70,7 +70,7 @@ func newAeadCipher(w io.Writer, key, nonce []byte) (*aeadCipher, error) {
 
 	return &aeadCipher{
 		cipher: c,
-		hash:   poly1305.New(&polyKey),
+		hash:   poly1305.New(polyKey),
 		dst:    w,
 	}, nil
 }
@@ -96,7 +96,7 @@ func (c *aeadCipher) authenticate(tag *[tagsize]byte) {
 	}
 	binary.LittleEndian.PutUint64(pad[8:], c.byteCtr)
 	c.hash.Write(pad[:])
-	c.hash.Sum(tag)
+	c.hash.Sum(tag[:0])
 }
 
 type encryptedWriter struct {
