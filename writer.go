@@ -105,8 +105,7 @@ type encryptedWriter struct {
 
 func (w *encryptedWriter) Write(p []byte) (n int, err error) {
 	w.byteCtr += uint64(len(p))
-	w.encrypt(p)
-	return
+	return w.encrypt(p)
 }
 
 func (w *encryptedWriter) Close() error {
